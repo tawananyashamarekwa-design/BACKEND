@@ -1,0 +1,126 @@
+[2026-04-27 03:14:46] [Database] [INFO] Database connection attempt 1 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:14:47] [Database] [INFO] Database connection attempt 2 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:14:48] [Database] [INFO] Database connection attempt 3 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:18:59] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:19:52] [Database] [INFO] Database connection attempt 1 failed: SQLSTATE[HY000] [2002] Operation not permitted
+[2026-04-27 03:19:53] [Database] [INFO] Database connection attempt 2 failed: SQLSTATE[HY000] [2002] Operation not permitted
+[2026-04-27 03:19:54] [Database] [INFO] Database connection attempt 3 failed: SQLSTATE[HY000] [2002] Operation not permitted
+[2026-04-27 03:20:30] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:21:16] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:22:00] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:23:24] [Database] [INFO] Database connection attempt 1 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:25] [Database] [INFO] Database connection attempt 2 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:26] [Database] [INFO] Database connection attempt 3 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:27] [Database] [INFO] Database connection attempt 1 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:28] [Database] [INFO] Database connection attempt 2 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:29] [Database] [INFO] Database connection attempt 3 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:29] [Database] [INFO] Database connection attempt 1 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:30] [Database] [INFO] Database connection attempt 2 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:31] [Database] [INFO] Database connection attempt 3 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:31] [Database] [INFO] Database connection attempt 1 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:32] [Database] [INFO] Database connection attempt 2 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:23:33] [Database] [INFO] Database connection attempt 3 failed: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'
+[2026-04-27 03:24:08] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:24:08] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:24:08] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:24:08] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:24:14] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:24:16] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:24:59] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:16] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:17] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:17] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:34] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:34] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:40] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:40] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:40] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:40] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:53] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:53] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:57] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:25:57] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:12] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:12] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:15] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:15] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:15] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:15] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:17] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:17] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:17] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:17] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:26:42] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:28:05] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:28:05] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:28:07] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:28:07] [ERROR] Order creation error: SQLSTATE[HY093]: Invalid parameter number
+[2026-04-27 03:28:20] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:28:20] [ERROR] Order creation error: SQLSTATE[HY093]: Invalid parameter number
+[2026-04-27 03:28:21] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:28:21] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:29:38] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:29:38] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:29:38] [ERROR] Payment initiation error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'metadata' in 'INSERT INTO'
+[2026-04-27 03:54:35] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:54:35] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:54:35] [ERROR] Payment initiation error: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+[2026-04-27 03:54:42] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:54:42] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:54:42] [ERROR] Payment initiation error: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+[2026-04-27 03:55:31] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:55:31] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:55:31] [ERROR] Payment initiation error: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+[2026-04-27 03:56:06] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:58:17] [Database] [INFO] Database connection established successfully
+[2026-04-27 03:58:21] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:02] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:02] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:02] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:02] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:13] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:34] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:34] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:34] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:02:34] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:03:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:09:37] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:09:37] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:09:37] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:09:37] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:09:37] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:09:37] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:10:50] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:10:50] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:11:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:11:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:11:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 04:11:09] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:53:57] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:53:57] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:53:57] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:53:57] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:55:15] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:55:29] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:55:29] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:55:29] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:55:29] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:56:11] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:56:11] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:56:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:56:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:56:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 12:56:25] [Database] [INFO] Database connection established successfully
+[2026-04-27 13:03:46] [Database] [INFO] Database connection established successfully
+[2026-04-27 13:03:46] [Database] [INFO] Database connection established successfully
+[2026-04-27 13:03:47] [Database] [INFO] Database connection established successfully
+[2026-04-27 13:03:47] [Database] [INFO] Database connection established successfully
+[2026-04-27 13:03:47] [Database] [INFO] Database connection established successfully
+[2026-04-27 13:03:47] [Database] [INFO] Database connection established successfully

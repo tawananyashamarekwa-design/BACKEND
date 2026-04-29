@@ -1,23 +1,20 @@
 <?php
 
 /**
- * ============================================================================
- * APPLICATION CONFIGURATION FILE
- * ============================================================================
  * 
- * This file contains all the core configuration settings for the electronics
+ * APPLICATION CONFIGURATION FILE
+  * This file contains all the core configuration settings for the electronics
  * ecommerce platform. All environment-specific settings should be defined here
  * to maintain a single source of truth for configuration management.
  * 
  * @package EcommerceElectronics
  * @author School Project
  * @version 1.0.0
- * ============================================================================
+ *
  */
 
-// ============================================================================
+
 // ENVIRONMENT DETECTION
-// ============================================================================
 // Determine if application is running in development or production mode
 // This affects error reporting, logging, and performance features
 
@@ -26,9 +23,7 @@ define('APP_DEBUG', APP_ENV === 'development');
 define('APP_NAME', 'Electronics Ecommerce Platform');
 define('APP_VERSION', '1.0.0');
 
-// ============================================================================
 // APPLICATION TIMEZONE & LOCALE
-// ============================================================================
 // Set the default timezone for all time operations throughout the application
 // This ensures consistent time handling across different server environments
 
@@ -36,9 +31,9 @@ date_default_timezone_set('UTC');
 define('APP_TIMEZONE', 'UTC');
 define('APP_LOCALE', 'en_US');
 
-// ============================================================================
+
 // DATABASE CONFIGURATION
-// ============================================================================
+
 // Database connection parameters using PDO (PHP Data Objects)
 // These values would typically come from environment variables in production
 
@@ -49,9 +44,9 @@ define('DB_NAME', getenv('DB_NAME') ?: 'electronics_ecommerce');
 define('DB_PORT', getenv('DB_PORT') ?: 3306);
 define('DB_CHARSET', 'utf8mb4');
 
-// ============================================================================
+
 // API CONFIGURATION
-// ============================================================================
+
 // Settings for RESTful API behavior, response formats, and rate limiting
 
 define('API_VERSION', '1.0');
@@ -61,9 +56,9 @@ define('API_TIMEOUT', 30);              // API timeout in seconds
 define('RATE_LIMIT_ENABLED', false);    // Disable for demo project
 define('ITEMS_PER_PAGE', 15);           // Default pagination limit
 
-// ============================================================================
+
 // SECURITY CONFIGURATION
-// ============================================================================
+
 // Security-related settings including encryption keys, token expiration, etc.
 // Note: These are simplified for the demo project
 
@@ -73,9 +68,8 @@ define('PASSWORD_MIN_LENGTH', 6);                 // Minimum password length
 define('BCRYPT_COST', 10);                        // BCrypt hashing cost factor
 define('SESSION_TIMEOUT', 3600);                  // Session timeout: 1 hour (in seconds)
 
-// ============================================================================
 // FILE UPLOAD CONFIGURATION
-// ============================================================================
+
 // Settings for file upload handling, storage locations, and allowed file types
 
 define('UPLOAD_DIR', __DIR__ . '/../uploads');
@@ -99,27 +93,27 @@ define('ALLOWED_ORIGINS', [
     'http://127.0.0.1:8080'
 ]);
 
-// ============================================================================
+
 // EMAIL CONFIGURATION (Optional for school demo)
-// ============================================================================
+
 // Email settings for sending notifications, order confirmations, etc.
 
 define('MAIL_FROM_ADDRESS', getenv('MAIL_FROM_ADDRESS') ?: 'noreply@electronics.local');
 define('MAIL_FROM_NAME', getenv('MAIL_FROM_NAME') ?: 'Electronics Store');
 define('MAIL_ENABLED', false);  // Disabled for demo
 
-// ============================================================================
+
 // LOGGING CONFIGURATION
-// ============================================================================
+
 // Settings for application logging and error tracking
 
 define('LOG_DIR', __DIR__ . '/../logs');
 define('LOG_FILE', LOG_DIR . '/application.log');
 define('LOG_LEVEL', APP_DEBUG ? 'DEBUG' : 'ERROR');
 
-// ============================================================================
+
 // BUSINESS CONSTANTS
-// ============================================================================
+
 // Domain-specific constants for order statuses, user roles, etc.
 
 define('ORDER_STATUS_PROCESSING', 'processing');
@@ -134,11 +128,11 @@ define('USER_ROLE_GUEST', 'guest');
 define('PAYMENT_STATUS_PENDING', 'pending');
 define('PAYMENT_STATUS_COMPLETED', 'completed');
 define('PAYMENT_STATUS_FAILED', 'failed');
-define('PAYMENT_STATUS_REFUNDED', 'refunded');
 
-// ============================================================================
+
+
 // HTTP STATUS CODES
-// ============================================================================
+
 // Common HTTP response codes used throughout the application
 
 define('HTTP_OK', 200);
