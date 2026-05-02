@@ -1,14 +1,9 @@
 <?php
-die("THIS IS THE FILE I AM EDITING");
+
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../Core/router.php';
 
-require_once __DIR__ . '/../utils/Request.php';
-require_once __DIR__ . '/../utils/Response.php';
-require_once __DIR__ . '/../utils/Validator.php';
-require_once __DIR__ . '/../utils/Auth.php';
-
+// Error handling
 error_reporting(E_ALL);
 
 if (defined('APP_DEBUG') && APP_DEBUG) {
@@ -17,17 +12,18 @@ if (defined('APP_DEBUG') && APP_DEBUG) {
     ini_set('display_errors', 0);
 }
 
+// JSON response header
 header('Content-Type: application/json');
 
+// Get request info
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
 /*
 |--------------------------------------------------------------------------
-| BASIC TEST ROUTES
+| ROOT ROUTE
 |--------------------------------------------------------------------------
 */
-
 if ($uri === '/' && $method === 'GET') {
     echo json_encode([
         'success' => true,
@@ -37,6 +33,11 @@ if ($uri === '/' && $method === 'GET') {
     exit;
 }
 
+/*
+|--------------------------------------------------------------------------
+| API BASE CHECK
+|--------------------------------------------------------------------------
+*/
 if ($uri === '/api/v1' && $method === 'GET') {
     echo json_encode([
         'success' => true,
@@ -50,7 +51,6 @@ if ($uri === '/api/v1' && $method === 'GET') {
 | PRODUCTS ROUTE
 |--------------------------------------------------------------------------
 */
-
 if ($uri === '/api/v1/products' && $method === 'GET') {
     try {
         global $pdo;
@@ -68,7 +68,7 @@ if ($uri === '/api/v1/products' && $method === 'GET') {
     } catch (Exception $e) {
         echo json_encode([
             'success' => false,
-            'message' => 'Products route is working, but database table may not exist yet',
+            'message' => 'Products route works but DB/table may not exist yet',
             'error' => $e->getMessage()
         ]);
         exit;
@@ -80,7 +80,6 @@ if ($uri === '/api/v1/products' && $method === 'GET') {
 | CATEGORIES ROUTE
 |--------------------------------------------------------------------------
 */
-
 if ($uri === '/api/v1/categories' && $method === 'GET') {
     try {
         global $pdo;
@@ -98,7 +97,7 @@ if ($uri === '/api/v1/categories' && $method === 'GET') {
     } catch (Exception $e) {
         echo json_encode([
             'success' => false,
-            'message' => 'Categories route is working, but database table may not exist yet',
+            'message' => 'Categories route works but DB/table may not exist yet',
             'error' => $e->getMessage()
         ]);
         exit;
@@ -107,10 +106,9 @@ if ($uri === '/api/v1/categories' && $method === 'GET') {
 
 /*
 |--------------------------------------------------------------------------
-| FALLBACK ROUTE
+| FALLBACK (NOT FOUND)
 |--------------------------------------------------------------------------
 */
-
 http_response_code(404);
 
 echo json_encode([
