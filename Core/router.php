@@ -166,13 +166,25 @@ class Router {
     
     
 
-    private function routeToRegex($route) {
-        $pattern = preg_quote($route, '/');
-        
-        $pattern = preg_replace('/:([a-zA-Z_][a-zA-Z0-9_]*)/', '(?P<$1>[^\/]+)', $pattern);
-        
-        return '/^' . $pattern . '$/';
-    }
+   private function routeToRegex($route) {
+    $route = trim($route, '/');
+
+    // Convert routes like products/{id} to products/(?P<id>[^/]+)
+    $pattern = preg_replace(
+        '/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/',
+        '(?P<$1>[^/]+)',
+        $route
+    );
+
+    // Convert routes like products/:id to products/(?P<id>[^/]+)
+    $pattern = preg_replace(
+        '/\:([a-zA-Z_][a-zA-Z0-9_]*)/',
+        '(?P<$1>[^/]+)',
+        $pattern
+    );
+
+    return '/^' . str_replace('/', '\/', $pattern) . '$/';
+}
     
     private function executeHandler($matched) {
         $handler = $matched['handler'];
