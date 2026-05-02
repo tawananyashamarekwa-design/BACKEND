@@ -78,7 +78,7 @@ require_once __DIR__ . '/../utils/Auth.php';
 // ============================================================================
 // Load base model and controller classes
 
-require_once __DIR__ . '/../app/models/Model.php';
+//require_once __DIR__ . '/../app/models/Model.php';
 require_once __DIR__ . '/../app/controllers/Controller.php';
 
 // ============================================================================
