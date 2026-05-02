@@ -1,22 +1,5 @@
 <?php
 
-/**
- * 
- * APPLICATION CONFIGURATION FILE
-  * This file contains all the core configuration settings for the electronics
- * ecommerce platform. All environment-specific settings should be defined here
- * to maintain a single source of truth for configuration management.
- * 
- * @package EcommerceElectronics
- * @author School Project
- * @version 1.0.0
- *
- */
-
-
-// ENVIRONMENT DETECTION
-// Determine if application is running in development or production mode
-// This affects error reporting, logging, and performance features
 
 define('APP_ENV', getenv('APP_ENV') ?: 'development');
 define('APP_DEBUG', APP_ENV === 'development');

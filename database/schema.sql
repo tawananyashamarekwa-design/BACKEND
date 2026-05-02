@@ -1,22 +1,7 @@
--- ============================================================================
--- ELECTRONICS ECOMMERCE DATABASE SCHEMA
--- ============================================================================
--- 
--- This SQL file contains the complete database schema for the electronics
--- ecommerce platform. Run this file to create all necessary tables.
--- 
--- Command: mysql -u root -p electronics_ecommerce < schema.sql
--- 
--- ============================================================================
 
--- Create database if it doesn't exist
 CREATE DATABASE IF NOT EXISTS electronics_ecommerce;
 USE electronics_ecommerce;
 
--- ============================================================================
--- USERS TABLE
--- ============================================================================
--- Stores user account information (customers and admins)
 
 CREATE TABLE IF NOT EXISTS users (
     -- Primary key
@@ -43,10 +28,6 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================================
--- PRODUCTS TABLE
--- ============================================================================
--- Stores product information for sale
 
 CREATE TABLE IF NOT EXISTS products (
     -- Primary key
@@ -74,10 +55,6 @@ CREATE TABLE IF NOT EXISTS products (
     INDEX idx_sku (sku)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================================
--- CATEGORIES TABLE
--- ============================================================================
--- Product categories (e.g., Laptops, Phones, Accessories)
 
 CREATE TABLE IF NOT EXISTS categories (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -89,10 +66,6 @@ CREATE TABLE IF NOT EXISTS categories (
     INDEX idx_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================================
--- ORDERS TABLE
--- ============================================================================
--- Stores customer orders
 
 CREATE TABLE IF NOT EXISTS orders (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -118,10 +91,6 @@ CREATE TABLE IF NOT EXISTS orders (
     INDEX idx_orderNumber (orderNumber)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================================
--- ORDER ITEMS TABLE
--- ============================================================================
--- Line items for each order
 
 CREATE TABLE IF NOT EXISTS order_items (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -147,9 +116,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     INDEX idx_product (productId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================================
--- PAYMENTS TABLE
--- ============================================================================
+
 -- Payment transaction records
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -178,9 +145,6 @@ CREATE TABLE IF NOT EXISTS payments (
     INDEX idx_transactionId (transactionId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================================
--- SAMPLE DATA (Optional)
--- ============================================================================
 
 -- Insert sample category
 INSERT IGNORE INTO categories (name, description) VALUES 
@@ -196,6 +160,3 @@ INSERT IGNORE INTO users (email, password, firstName, lastName, role, isActive) 
 INSERT IGNORE INTO users (email, password, firstName, lastName, role, isActive) VALUES 
 ('customer@example.com', '$2y$10$n7cNSdxYaBoOz1Y/UpPG8eJMJeA9TzL7pTfpTSILqHNwuT7X4BZ4K', 'John', 'Doe', 'customer', 1);
 
--- ============================================================================
--- END OF SCHEMA
--- ============================================================================
