@@ -1,57 +1,41 @@
 # ============================================================================
 # APACHE URL REWRITING CONFIGURATION
 # ============================================================================
-# 
-# This file enables URL rewriting for the API routes.
-# All requests are rewritten to public/index.php which handles routing.
-#
-# Place this in the public/ directory: public/.htaccess
-# ============================================================================
 
-# Enable mod_rewrite module
 <IfModule mod_rewrite.c>
-    # Enable rewriting
     RewriteEngine On
-    
-    # Set base for rewrites (adjust if API is in subdirectory)
+
+    # Base path
     RewriteBase /
-    
-    # Don't rewrite if it's an actual file that exists
-    RewriteCond %{REQUEST_FILENAME} !-f
-    
-    # Don't rewrite if it's an actual directory that exists
-    RewriteCond %{REQUEST_FILENAME} !-d
-    
-    # Rewrite all requests to index.php
-    RewriteRule ^(.*)$ index.php?$1 [QSA,L]
+
+    # If file exists, serve it
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Otherwise route everything to index.php
+    RewriteRule ^ index.php [QSA,L]
 </IfModule>
 
 # ============================================================================
-# SECURITY HEADERS
+# SECURITY
 # ============================================================================
 
-# Prevent access to sensitive files
-<FilesMatch "\.(env|json|md|sql)$">
-    Order Allow,Deny
-    Deny from all
+# Block access to sensitive files
+<FilesMatch "\.(env|sql|json|md|log)$">
+    Require all denied
 </FilesMatch>
 
 # ============================================================================
-# COMPRESSION & CACHING
+# COMPRESSION
 # ============================================================================
 
-# Enable gzip compression
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/plain
     AddOutputFilterByType DEFLATE text/html
     AddOutputFilterByType DEFLATE text/xml
     AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE text/javascript
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE application/rss+xml
     AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/x-javascript
     AddOutputFilterByType DEFLATE application/json
 </IfModule>
 
@@ -59,21 +43,19 @@
 # CACHING
 # ============================================================================
 
-# Set expiration for static files
 <IfModule mod_expires.c>
     ExpiresActive On
-    
+
     # Images
     ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/gif "access plus 1 year"
     ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
     ExpiresByType image/webp "access plus 1 year"
-    
-    # CSS and JavaScript
+
+    # CSS & JS
     ExpiresByType text/css "access plus 1 week"
     ExpiresByType application/javascript "access plus 1 week"
-    
-    # API responses (don't cache)
-    ExpiresByType application/json "now"
-    ExpiresByType application/xml "now"
+
+    # API responses (no cache)
+    ExpiresByType application/json "access plus 0 seconds"
 </IfModule>
