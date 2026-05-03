@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 10000
 
-CMD php -S 0.0.0.0:${PORT:-10000} public/index.php
+CMD php database/migrate.php && php -S 0.0.0.0:${PORT:-10000} public/index.php
