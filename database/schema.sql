@@ -77,6 +77,10 @@ CREATE TABLE IF NOT EXISTS orders (
     orderNumber VARCHAR(50) UNIQUE NOT NULL,
     totalAmount DECIMAL(10, 2) NOT NULL,
     status VARCHAR(50) DEFAULT 'processing',  -- processing, completed, failed, cancelled
+    payment_method VARCHAR(50),
+    payment_status VARCHAR(50) DEFAULT 'Pending',
+    paynow_poll_url TEXT,
+    paynow_reference VARCHAR(100),
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -88,6 +92,7 @@ CREATE TABLE IF NOT EXISTS orders (
     -- Indexes
     INDEX idx_user (userId),
     INDEX idx_status (status),
+    INDEX idx_payment_status (payment_status),
     INDEX idx_orderNumber (orderNumber)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

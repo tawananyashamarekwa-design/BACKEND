@@ -137,6 +137,18 @@ define('PAYMENT_STATUS_FAILED', 'failed');
 define('PAYMENT_STATUS_REFUNDED', 'refunded');
 
 // ============================================================================
+// PAYNOW ZIMBABWE CONFIGURATION
+// ============================================================================
+// Put real Paynow credentials in environment variables, never in frontend code.
+// Example Apache/XAMPP env names:
+// PAYNOW_INTEGRATION_ID, PAYNOW_INTEGRATION_KEY, PAYNOW_RETURN_URL, PAYNOW_RESULT_URL
+
+define('PAYNOW_INTEGRATION_ID', getenv('PAYNOW_INTEGRATION_ID') ?: '');
+define('PAYNOW_INTEGRATION_KEY', getenv('PAYNOW_INTEGRATION_KEY') ?: '');
+define('PAYNOW_RETURN_URL', getenv('PAYNOW_RETURN_URL') ?: 'http://localhost:5173/payment-success');
+define('PAYNOW_RESULT_URL', getenv('PAYNOW_RESULT_URL') ?: 'http://localhost:8000/api/v1/paynow-result');
+
+// ============================================================================
 // HTTP STATUS CODES
 // ============================================================================
 // Common HTTP response codes used throughout the application

@@ -13,3 +13,6 @@ RUN echo '<Directory /var/www/html/public>\n\
 </Directory>' >> /etc/apache2/apache2.conf
 
 EXPOSE 80
+
+
+CMD ["php", "-S", "0.0.0.0:10000", "-t", "public"]
