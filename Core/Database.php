@@ -42,13 +42,20 @@ class Database {
     }
     
     private function connect() {
-        $dsn = sprintf(
-            'mysql:host=%s;port=%d;dbname=%s;charset=%s',
-            DB_HOST,
-            DB_PORT,
-            DB_NAME,
-            DB_CHARSET
-        );
+        $dsn = DB_DRIVER === 'pgsql'
+            ? sprintf(
+                'pgsql:host=%s;port=%d;dbname=%s',
+                DB_HOST,
+                DB_PORT,
+                DB_NAME
+            )
+            : sprintf(
+                'mysql:host=%s;port=%d;dbname=%s;charset=%s',
+                DB_HOST,
+                DB_PORT,
+                DB_NAME,
+                DB_CHARSET
+            );
         
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
