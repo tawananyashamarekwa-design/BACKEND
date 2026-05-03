@@ -15,8 +15,16 @@ $allowedOrigins = [
     'https://harareelectronichub.vercel.app'
 ];
 
-if (in_array($origin, $allowedOrigins)) {
+$frontendUrl = getenv('FRONTEND_URL');
+if ($frontendUrl) {
+    $allowedOrigins[] = rtrim($frontendUrl, '/');
+}
+
+$isAllowedVercelOrigin = (bool) preg_match('/^https:\/\/[a-z0-9-]+\.vercel\.app$/i', $origin);
+
+if (in_array($origin, $allowedOrigins, true) || $isAllowedVercelOrigin) {
     header("Access-Control-Allow-Origin: $origin");
+    header('Vary: Origin');
 }
 
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");

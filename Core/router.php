@@ -239,9 +239,12 @@ class Router {
         
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
        
-        if (in_array($origin, ALLOWED_ORIGINS)) {
+        $isAllowedVercelOrigin = (bool) preg_match('/^https:\/\/[a-z0-9-]+\.vercel\.app$/i', $origin);
+
+        if (in_array($origin, ALLOWED_ORIGINS, true) || $isAllowedVercelOrigin) {
             header("Access-Control-Allow-Origin: $origin");
             header('Access-Control-Allow-Credentials: true');
+            header('Vary: Origin');
         }
         
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS');

@@ -91,14 +91,16 @@ define('ALLOWED_FILE_TYPES', ['pdf', 'doc', 'docx', 'xls', 'xlsx']);
 // Configure which domains are allowed to access this API
 
 define('CORS_ENABLED', true);
-define('ALLOWED_ORIGINS', [
+define('ALLOWED_ORIGINS', array_values(array_filter([
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:8080',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
-    'http://127.0.0.1:8080'
-]);
+    'http://127.0.0.1:8080',
+    'https://harareelectronichub.vercel.app',
+    rtrim(getenv('FRONTEND_URL') ?: '', '/')
+])));
 
 // ============================================================================
 // EMAIL CONFIGURATION (Optional for school demo)
