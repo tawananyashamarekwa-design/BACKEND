@@ -42,7 +42,11 @@ define('APP_LOCALE', 'en_US');
 // Database connection parameters using PDO (PHP Data Objects)
 // These values would typically come from environment variables in production
 
-define('DB_DRIVER', getenv('DB_DRIVER') ?: (getenv('DB_PASSWORD') ? 'pgsql' : 'mysql'));
+define('DB_DRIVER', getenv('DB_DRIVER') ?: (
+    str_starts_with(getenv('DATABASE_URL') ?: '', 'postgres') || getenv('DB_PORT') === '5432'
+        ? 'pgsql'
+        : 'mysql'
+));
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 define('DB_USER', getenv('DB_USER') ?: 'root');
 define('DB_PASS', getenv('DB_PASSWORD') ?: (getenv('DB_PASS') ?: ''));

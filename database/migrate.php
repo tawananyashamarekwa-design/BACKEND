@@ -1,7 +1,11 @@
 <?php
 
 $databaseUrl = getenv('DATABASE_URL');
-$driver = getenv('DB_DRIVER') ?: (getenv('DB_PASSWORD') ? 'pgsql' : 'mysql');
+$driver = getenv('DB_DRIVER') ?: (
+    str_starts_with($databaseUrl ?: '', 'postgres') || getenv('DB_PORT') === '5432'
+        ? 'pgsql'
+        : 'mysql'
+);
 $host = getenv('DB_HOST') ?: 'localhost';
 $port = getenv('DB_PORT') ?: ($driver === 'pgsql' ? '5432' : '3306');
 $dbname = getenv('DB_NAME') ?: 'electronics_ecommerce';
