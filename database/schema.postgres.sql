@@ -98,3 +98,11 @@ INSERT INTO users (email, password, firstName, lastName, role, isActive) VALUES
 ('admin@electronics.local', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36gZvWFm', 'Admin', 'User', 'admin', TRUE),
 ('customer@example.com', '$2y$10$n7cNSdxYaBoOz1Y/UpPG8eJMJeA9TzL7pTfpTSILqHNwuT7X4BZ4K', 'John', 'Doe', 'customer', TRUE)
 ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO products (name, description, price, stockQuantity, categoryId, sku, image) VALUES
+('HP Pavilion 15', 'Everyday laptop for study, work, and entertainment.', 780.00, 8, (SELECT id FROM categories WHERE name = 'Laptops'), 'HP-PAV-15', 'https://ssl-product-images.www8-hp.com/digmedialib/prodimg/lowres/c08346584.png'),
+('Dell Inspiron 15', 'Reliable laptop with practical performance for daily tasks.', 720.00, 7, (SELECT id FROM categories WHERE name = 'Laptops'), 'DELL-INS-15', 'https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/page/category/laptop/inspiron-family-hero-504x350.png'),
+('Samsung Galaxy A15', 'Android smartphone with a large display and long battery life.', 250.00, 20, (SELECT id FROM categories WHERE name = 'Phones'), 'SAM-A15', 'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a155flbimeb/gallery/levant-galaxy-a15-sm-a155-sm-a155flbimeb-thumb-539790141'),
+('Apple iPhone 13', 'Apple smartphone with A15 Bionic performance and dual cameras.', 650.00, 10, (SELECT id FROM categories WHERE name = 'Phones'), 'APL-IP13', 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-13-finish-select-202207-6-1inch-blue'),
+('Sony Wireless Headphones', 'Comfortable wireless headphones with clear sound.', 120.00, 15, (SELECT id FROM categories WHERE name = 'Accessories'), 'SNY-WH-01', 'https://www.sony.com/image/5d02da5df552836db894cead8a68f5f3')
+ON CONFLICT (sku) DO NOTHING;
