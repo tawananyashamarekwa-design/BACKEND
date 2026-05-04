@@ -599,9 +599,14 @@ if ($uri === '/api/v1/products/search' && $method === 'GET') {
              LIMIT ? OFFSET ?"
         );
         $stmt->execute(array_merge($params, [$perPage, $offset]));
+        $products = array_map('normalizeProduct', $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+        if (!isset($_GET['page']) && !isset($_GET['perPage']) && !isset($_GET['per_page']) && empty($_GET['category'])) {
+            sendJson(true, 'Products retrieved successfully', $products);
+        }
 
         paginateResponse(
-            array_map('normalizeProduct', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+            $products,
             (int)$count->fetchColumn(),
             $page,
             $perPage,
@@ -639,9 +644,14 @@ if ($uri === '/api/v1/products' && $method === 'GET') {
              LIMIT ? OFFSET ?"
         );
         $stmt->execute(array_merge($params, [$perPage, $offset]));
+        $products = array_map('normalizeProduct', $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+        if (empty($_GET)) {
+            sendJson(true, 'Products retrieved successfully', $products);
+        }
 
         paginateResponse(
-            array_map('normalizeProduct', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+            $products,
             (int)$count->fetchColumn(),
             $page,
             $perPage,
@@ -765,9 +775,7 @@ if ($uri === '/api/v1/categories' && $method === 'GET') {
              GROUP BY c.id, c.name, c.description, c.icon, c.created_at, c.updated_at
              ORDER BY c.name ASC'
         );
-        sendJson(true, 'Categories retrieved successfully', [
-            'categories' => array_map('normalizeCategory', $stmt->fetchAll(PDO::FETCH_ASSOC)),
-        ]);
+        sendJson(true, 'Categories retrieved successfully', array_map('normalizeCategory', $stmt->fetchAll(PDO::FETCH_ASSOC)));
     } catch (Exception $e) {
         sendJson(false, 'Categories route works but DB/table may not exist yet', ['error' => $e->getMessage()]);
     }
