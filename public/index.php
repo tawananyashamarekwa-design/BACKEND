@@ -41,6 +41,15 @@ function base64UrlEncode($value) {
     return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
 }
 
+function base64UrlDecode($value) {
+    $remainder = strlen($value) % 4;
+    if ($remainder) {
+        $value .= str_repeat('=', 4 - $remainder);
+    }
+
+    return base64_decode(strtr($value, '-_', '+/'));
+}
+
 function createJwt(array $payload) {
     $header = [
         'typ' => 'JWT',
@@ -56,6 +65,57 @@ function createJwt(array $payload) {
     $segments[] = base64UrlEncode($signature);
 
     return implode('.', $segments);
+}
+
+function verifyJwt($token) {
+    $parts = explode('.', (string)$token);
+    if (count($parts) !== 3) {
+        return null;
+    }
+
+    [$encodedHeader, $encodedPayload, $encodedSignature] = $parts;
+    $expectedSignature = base64UrlEncode(
+        hash_hmac('sha256', $encodedHeader . '.' . $encodedPayload, JWT_SECRET, true)
+    );
+
+    if (!hash_equals($expectedSignature, $encodedSignature)) {
+        return null;
+    }
+
+    $payload = json_decode(base64UrlDecode($encodedPayload), true);
+    if (!is_array($payload)) {
+        return null;
+    }
+
+    if (isset($payload['exp']) && (int)$payload['exp'] < time()) {
+        return null;
+    }
+
+    return $payload;
+}
+
+function getBearerToken() {
+    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+
+    if ($header === '' && function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        $header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    }
+
+    if (!preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
+        return null;
+    }
+
+    return trim($matches[1]);
+}
+
+function requireAuthPayload() {
+    $payload = verifyJwt(getBearerToken());
+    if (!$payload || empty($payload['sub'])) {
+        sendJson(false, 'Authentication required.', null, HTTP_UNAUTHORIZED);
+    }
+
+    return $payload;
 }
 
 function databaseBool($value, $default = false) {
@@ -260,14 +320,26 @@ if ($uri === '/api/v1/auth/register' && $method === 'POST') {
         $firstName = trim($input['firstName'] ?? $input['first_name'] ?? '');
         $lastName = trim($input['lastName'] ?? $input['last_name'] ?? '');
 
+        if ($fullName === '' && isset($input['username'])) {
+            $fullName = trim($input['username']);
+        }
+
         if ($firstName === '' && $fullName !== '') {
             $nameParts = preg_split('/\s+/', $fullName, 2);
             $firstName = $nameParts[0] ?? '';
             $lastName = $lastName !== '' ? $lastName : ($nameParts[1] ?? '');
         }
 
-        if ($email === '' || $password === '' || $firstName === '' || $lastName === '') {
-            sendJson(false, 'Email, password, first name, and last name are required.', null, HTTP_BAD_REQUEST);
+        if ($firstName === '' && $email !== '') {
+            $firstName = ucfirst(strtok($email, '@') ?: 'Customer');
+        }
+
+        if ($lastName === '') {
+            $lastName = 'Customer';
+        }
+
+        if ($email === '' || $password === '') {
+            sendJson(false, 'Email and password are required.', null, HTTP_BAD_REQUEST);
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -317,6 +389,35 @@ if ($uri === '/api/v1/auth/register' && $method === 'POST') {
         }
 
         sendJson(false, 'Unable to register.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if (($uri === '/api/v1/auth/profile' || $uri === '/api/v1/auth/me') && $method === 'GET') {
+    try {
+        global $pdo;
+
+        $payload = requireAuthPayload();
+        $stmt = $pdo->prepare(
+            'SELECT id, email, firstName, lastName, role, isActive
+             FROM users
+             WHERE id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([(int)$payload['sub']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            sendJson(false, 'User not found.', null, HTTP_NOT_FOUND);
+        }
+
+        $isActive = databaseBool($user['isActive'] ?? ($user['isactive'] ?? true), true);
+        if (!$isActive) {
+            sendJson(false, 'Your account is inactive.', null, HTTP_FORBIDDEN);
+        }
+
+        sendJson(true, 'Profile retrieved successfully.', normalizeUserForResponse($user, $isActive));
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to load profile.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
     }
 }
 
