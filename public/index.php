@@ -152,10 +152,12 @@ function createAuthResponse(array $user) {
         'exp' => $now + JWT_EXPIRY,
     ]);
 
-    return [
+    $user = normalizeUserForResponse($user);
+
+    return array_merge($user, [
         'token' => $token,
         'user' => normalizeUserForResponse($user),
-    ];
+    ]);
 }
 
 function ensurePaynowOrderColumns(PDO $pdo) {
@@ -242,6 +244,163 @@ function isPaynowPaid($statusUpdate) {
     return is_object($statusUpdate)
         && method_exists($statusUpdate, 'paid')
         && $statusUpdate->paid();
+}
+
+function paginateResponse(array $items, $total, $page, $perPage, $message) {
+    $lastPage = max(1, (int)ceil($total / $perPage));
+    sendJson(true, $message, [
+        'items' => $items,
+        'pagination' => [
+            'total' => (int)$total,
+            'page' => (int)$page,
+            'per_page' => (int)$perPage,
+            'last_page' => $lastPage,
+            'has_more' => $page < $lastPage,
+        ],
+    ]);
+}
+
+function requestPage() {
+    return max(1, (int)($_GET['page'] ?? 1));
+}
+
+function requestPerPage($default = ITEMS_PER_PAGE) {
+    $perPage = (int)($_GET['perPage'] ?? $_GET['per_page'] ?? $default);
+    return max(1, min(100, $perPage));
+}
+
+function normalizeProduct(array $product) {
+    $product['id'] = (int)$product['id'];
+    $product['price'] = (float)$product['price'];
+    $product['stockQuantity'] = (int)($product['stockQuantity'] ?? ($product['stockquantity'] ?? 0));
+    $product['categoryId'] = isset($product['categoryId'])
+        ? (int)$product['categoryId']
+        : (isset($product['categoryid']) ? (int)$product['categoryid'] : null);
+    $product['categoryName'] = $product['categoryName'] ?? ($product['categoryname'] ?? null);
+    unset($product['stockquantity'], $product['categoryid'], $product['categoryname']);
+
+    return $product;
+}
+
+function normalizeCategory(array $category) {
+    $category['id'] = (int)$category['id'];
+    $category['productCount'] = (int)($category['productCount'] ?? ($category['productcount'] ?? 0));
+    unset($category['productcount']);
+
+    return $category;
+}
+
+function normalizeOrder(array $order) {
+    $order['id'] = (int)$order['id'];
+    $order['userId'] = isset($order['userId'])
+        ? (int)$order['userId']
+        : (isset($order['userid']) ? (int)$order['userid'] : null);
+    $order['orderNumber'] = $order['orderNumber'] ?? ($order['ordernumber'] ?? '');
+    $order['totalAmount'] = (float)($order['totalAmount'] ?? ($order['totalamount'] ?? 0));
+    $order['firstName'] = $order['firstName'] ?? ($order['firstname'] ?? '');
+    $order['lastName'] = $order['lastName'] ?? ($order['lastname'] ?? '');
+    unset($order['userid'], $order['ordernumber'], $order['totalamount'], $order['firstname'], $order['lastname']);
+
+    return $order;
+}
+
+function normalizePayment(array $payment) {
+    $payment['id'] = (int)$payment['id'];
+    $payment['orderId'] = isset($payment['orderId'])
+        ? (int)$payment['orderId']
+        : (isset($payment['orderid']) ? (int)$payment['orderid'] : null);
+    $payment['amount'] = (float)$payment['amount'];
+    $payment['paymentMethod'] = $payment['paymentMethod'] ?? ($payment['paymentmethod'] ?? null);
+    $payment['transactionId'] = $payment['transactionId'] ?? ($payment['transactionid'] ?? null);
+    $payment['orderNumber'] = $payment['orderNumber'] ?? ($payment['ordernumber'] ?? null);
+    unset($payment['orderid'], $payment['paymentmethod'], $payment['transactionid'], $payment['ordernumber']);
+
+    return $payment;
+}
+
+function currentUser(PDO $pdo) {
+    $payload = requireAuthPayload();
+    $stmt = $pdo->prepare(
+        'SELECT id, email, firstName, lastName, role, isActive
+         FROM users
+         WHERE id = ?
+         LIMIT 1'
+    );
+    $stmt->execute([(int)$payload['sub']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        sendJson(false, 'User not found.', null, HTTP_NOT_FOUND);
+    }
+
+    $isActive = databaseBool($user['isActive'] ?? ($user['isactive'] ?? true), true);
+    if (!$isActive) {
+        sendJson(false, 'Your account is inactive.', null, HTTP_FORBIDDEN);
+    }
+
+    return normalizeUserForResponse($user, $isActive);
+}
+
+function requireAdminUser(PDO $pdo) {
+    $user = currentUser($pdo);
+    if (($user['role'] ?? '') !== USER_ROLE_ADMIN) {
+        sendJson(false, 'Admin access required.', null, HTTP_FORBIDDEN);
+    }
+
+    return $user;
+}
+
+function fetchProduct(PDO $pdo, $productId) {
+    $stmt = $pdo->prepare(
+        'SELECT p.*, c.name AS categoryName
+         FROM products p
+         LEFT JOIN categories c ON c.id = p.categoryId
+         WHERE p.id = ?
+         LIMIT 1'
+    );
+    $stmt->execute([(int)$productId]);
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $product ? normalizeProduct($product) : null;
+}
+
+function fetchOrder(PDO $pdo, $orderId) {
+    $stmt = $pdo->prepare(
+        'SELECT o.*, u.email, u.firstName, u.lastName
+         FROM orders o
+         INNER JOIN users u ON u.id = o.userId
+         WHERE o.id = ?
+         LIMIT 1'
+    );
+    $stmt->execute([(int)$orderId]);
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$order) {
+        return null;
+    }
+
+    $items = $pdo->prepare(
+        'SELECT oi.*, p.name AS productName
+         FROM order_items oi
+         INNER JOIN products p ON p.id = oi.productId
+         WHERE oi.orderId = ?
+         ORDER BY oi.id ASC'
+    );
+    $items->execute([(int)$orderId]);
+    $order = normalizeOrder($order);
+    $order['items'] = array_map(function ($item) {
+        $item['id'] = (int)$item['id'];
+        $item['orderId'] = (int)($item['orderId'] ?? ($item['orderid'] ?? 0));
+        $item['productId'] = (int)($item['productId'] ?? ($item['productid'] ?? 0));
+        $item['productName'] = $item['productName'] ?? ($item['productname'] ?? '');
+        $item['quantity'] = (int)$item['quantity'];
+        $item['unitPrice'] = (float)($item['unitPrice'] ?? ($item['unitprice'] ?? 0));
+        $item['subtotal'] = (float)$item['subtotal'];
+        unset($item['orderid'], $item['productid'], $item['productname'], $item['unitprice']);
+        return $item;
+    }, $items->fetchAll(PDO::FETCH_ASSOC));
+
+    return $order;
 }
 
 setCorsHeaders();
@@ -396,28 +555,641 @@ if (($uri === '/api/v1/auth/profile' || $uri === '/api/v1/auth/me') && $method =
     try {
         global $pdo;
 
-        $payload = requireAuthPayload();
-        $stmt = $pdo->prepare(
-            'SELECT id, email, firstName, lastName, role, isActive
-             FROM users
-             WHERE id = ?
-             LIMIT 1'
-        );
-        $stmt->execute([(int)$payload['sub']]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$user) {
-            sendJson(false, 'User not found.', null, HTTP_NOT_FOUND);
-        }
-
-        $isActive = databaseBool($user['isActive'] ?? ($user['isactive'] ?? true), true);
-        if (!$isActive) {
-            sendJson(false, 'Your account is inactive.', null, HTTP_FORBIDDEN);
-        }
-
-        sendJson(true, 'Profile retrieved successfully.', normalizeUserForResponse($user, $isActive));
+        $user = currentUser($pdo);
+        sendJson(true, 'Profile retrieved successfully.', $user);
     } catch (Exception $e) {
         sendJson(false, 'Unable to load profile.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/products/search' && $method === 'GET') {
+    try {
+        global $pdo;
+
+        $query = trim($_GET['q'] ?? '');
+        if (strlen($query) < 2) {
+            sendJson(false, 'Search query must be at least 2 characters.', null, HTTP_BAD_REQUEST);
+        }
+
+        $page = requestPage();
+        $perPage = requestPerPage();
+        $offset = ($page - 1) * $perPage;
+        $like = '%' . strtolower($query) . '%';
+        $params = [$like, $like];
+        $categorySql = '';
+
+        if (!empty($_GET['category'])) {
+            $categorySql = ' AND p.categoryId = ?';
+            $params[] = (int)$_GET['category'];
+        }
+
+        $count = $pdo->prepare(
+            "SELECT COUNT(*)
+             FROM products p
+             WHERE (LOWER(p.name) LIKE ? OR LOWER(COALESCE(p.description, '')) LIKE ?)$categorySql"
+        );
+        $count->execute($params);
+
+        $stmt = $pdo->prepare(
+            "SELECT p.*, c.name AS categoryName
+             FROM products p
+             LEFT JOIN categories c ON c.id = p.categoryId
+             WHERE (LOWER(p.name) LIKE ? OR LOWER(COALESCE(p.description, '')) LIKE ?)$categorySql
+             ORDER BY p.id DESC
+             LIMIT ? OFFSET ?"
+        );
+        $stmt->execute(array_merge($params, [$perPage, $offset]));
+
+        paginateResponse(
+            array_map('normalizeProduct', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+            (int)$count->fetchColumn(),
+            $page,
+            $perPage,
+            'Products retrieved successfully'
+        );
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to search products.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/products' && $method === 'GET') {
+    try {
+        global $pdo;
+
+        $page = requestPage();
+        $perPage = requestPerPage();
+        $offset = ($page - 1) * $perPage;
+        $params = [];
+        $where = '';
+
+        if (!empty($_GET['category'])) {
+            $where = 'WHERE p.categoryId = ?';
+            $params[] = (int)$_GET['category'];
+        }
+
+        $count = $pdo->prepare("SELECT COUNT(*) FROM products p $where");
+        $count->execute($params);
+
+        $stmt = $pdo->prepare(
+            "SELECT p.*, c.name AS categoryName
+             FROM products p
+             LEFT JOIN categories c ON c.id = p.categoryId
+             $where
+             ORDER BY p.id DESC
+             LIMIT ? OFFSET ?"
+        );
+        $stmt->execute(array_merge($params, [$perPage, $offset]));
+
+        paginateResponse(
+            array_map('normalizeProduct', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+            (int)$count->fetchColumn(),
+            $page,
+            $perPage,
+            'Products retrieved successfully'
+        );
+    } catch (Exception $e) {
+        sendJson(false, 'Products route works but DB/table may not exist yet', ['error' => $e->getMessage()]);
+    }
+}
+
+if (preg_match('#^/api/v1/products/(\d+)$#', $uri, $matches) && $method === 'GET') {
+    try {
+        global $pdo;
+
+        $product = fetchProduct($pdo, (int)$matches[1]);
+        if (!$product) {
+            sendJson(false, 'Product not found.', null, HTTP_NOT_FOUND);
+        }
+
+        sendJson(true, 'Product retrieved successfully.', $product);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to load product.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/products' && $method === 'POST') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $input = getJsonInput();
+        $name = trim($input['name'] ?? '');
+        $price = (float)($input['price'] ?? 0);
+        $stockQuantity = (int)($input['stockQuantity'] ?? $input['stock_quantity'] ?? 0);
+        $categoryId = (int)($input['categoryId'] ?? $input['category_id'] ?? 0);
+        $description = trim($input['description'] ?? '');
+        $sku = trim($input['sku'] ?? '') ?: null;
+        $image = trim($input['image'] ?? '') ?: null;
+
+        if ($name === '' || $price < 0 || $stockQuantity < 0 || $categoryId <= 0) {
+            sendJson(false, 'Name, price, stock quantity, and category are required.', null, HTTP_BAD_REQUEST);
+        }
+
+        if (DB_DRIVER === 'pgsql') {
+            $stmt = $pdo->prepare(
+                'INSERT INTO products (name, description, price, stockQuantity, categoryId, sku, image)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 RETURNING id'
+            );
+            $stmt->execute([$name, $description, $price, $stockQuantity, $categoryId, $sku, $image]);
+            $productId = (int)$stmt->fetchColumn();
+        } else {
+            $stmt = $pdo->prepare(
+                'INSERT INTO products (name, description, price, stockQuantity, categoryId, sku, image)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, $description, $price, $stockQuantity, $categoryId, $sku, $image]);
+            $productId = (int)$pdo->lastInsertId();
+        }
+
+        sendJson(true, 'Product created successfully.', fetchProduct($pdo, $productId), HTTP_CREATED);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to create product.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if (preg_match('#^/api/v1/products/(\d+)$#', $uri, $matches) && $method === 'PUT') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $productId = (int)$matches[1];
+        if (!fetchProduct($pdo, $productId)) {
+            sendJson(false, 'Product not found.', null, HTTP_NOT_FOUND);
+        }
+
+        $input = getJsonInput();
+        $stmt = $pdo->prepare(
+            'UPDATE products
+             SET name = ?, description = ?, price = ?, stockQuantity = ?, categoryId = ?, sku = ?, image = COALESCE(?, image)
+             WHERE id = ?'
+        );
+        $stmt->execute([
+            trim($input['name'] ?? ''),
+            trim($input['description'] ?? ''),
+            (float)($input['price'] ?? 0),
+            (int)($input['stockQuantity'] ?? $input['stock_quantity'] ?? 0),
+            (int)($input['categoryId'] ?? $input['category_id'] ?? 0),
+            trim($input['sku'] ?? '') ?: null,
+            trim($input['image'] ?? '') ?: null,
+            $productId,
+        ]);
+
+        sendJson(true, 'Product updated successfully.', fetchProduct($pdo, $productId));
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to update product.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if (preg_match('#^/api/v1/products/(\d+)$#', $uri, $matches) && $method === 'DELETE') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $stmt = $pdo->prepare('DELETE FROM products WHERE id = ?');
+        $stmt->execute([(int)$matches[1]]);
+        sendJson(true, 'Product deleted successfully.');
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to delete product. It may be attached to an order.', ['error' => $e->getMessage()], HTTP_CONFLICT);
+    }
+}
+
+if ($uri === '/api/v1/categories' && $method === 'GET') {
+    try {
+        global $pdo;
+
+        $stmt = $pdo->query(
+            'SELECT c.*, COUNT(p.id) AS productCount
+             FROM categories c
+             LEFT JOIN products p ON p.categoryId = c.id
+             GROUP BY c.id, c.name, c.description, c.icon, c.created_at, c.updated_at
+             ORDER BY c.name ASC'
+        );
+        sendJson(true, 'Categories retrieved successfully', [
+            'categories' => array_map('normalizeCategory', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+        ]);
+    } catch (Exception $e) {
+        sendJson(false, 'Categories route works but DB/table may not exist yet', ['error' => $e->getMessage()]);
+    }
+}
+
+if ($uri === '/api/v1/categories' && $method === 'POST') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $input = getJsonInput();
+        $name = trim($input['name'] ?? '');
+        $description = trim($input['description'] ?? '');
+        $icon = trim($input['icon'] ?? '') ?: null;
+
+        if ($name === '') {
+            sendJson(false, 'Category name is required.', null, HTTP_BAD_REQUEST);
+        }
+
+        if (DB_DRIVER === 'pgsql') {
+            $stmt = $pdo->prepare(
+                'INSERT INTO categories (name, description, icon)
+                 VALUES (?, ?, ?)
+                 RETURNING *'
+            );
+            $stmt->execute([$name, $description, $icon]);
+            $category = normalizeCategory($stmt->fetch(PDO::FETCH_ASSOC));
+        } else {
+            $stmt = $pdo->prepare('INSERT INTO categories (name, description, icon) VALUES (?, ?, ?)');
+            $stmt->execute([$name, $description, $icon]);
+            $lookup = $pdo->prepare('SELECT * FROM categories WHERE id = ?');
+            $lookup->execute([(int)$pdo->lastInsertId()]);
+            $category = normalizeCategory($lookup->fetch(PDO::FETCH_ASSOC));
+        }
+
+        sendJson(true, 'Category created successfully.', $category, HTTP_CREATED);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to create category.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if (preg_match('#^/api/v1/categories/(\d+)$#', $uri, $matches) && $method === 'PUT') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $input = getJsonInput();
+        $stmt = $pdo->prepare('UPDATE categories SET name = ?, description = ?, icon = COALESCE(?, icon) WHERE id = ?');
+        $stmt->execute([
+            trim($input['name'] ?? ''),
+            trim($input['description'] ?? ''),
+            trim($input['icon'] ?? '') ?: null,
+            (int)$matches[1],
+        ]);
+        $lookup = $pdo->prepare('SELECT * FROM categories WHERE id = ?');
+        $lookup->execute([(int)$matches[1]]);
+        $category = $lookup->fetch(PDO::FETCH_ASSOC);
+
+        if (!$category) {
+            sendJson(false, 'Category not found.', null, HTTP_NOT_FOUND);
+        }
+
+        sendJson(true, 'Category updated successfully.', normalizeCategory($category));
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to update category.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if (preg_match('#^/api/v1/categories/(\d+)$#', $uri, $matches) && $method === 'DELETE') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $count = $pdo->prepare('SELECT COUNT(*) FROM products WHERE categoryId = ?');
+        $count->execute([(int)$matches[1]]);
+        if ((int)$count->fetchColumn() > 0) {
+            sendJson(false, 'Cannot delete a category with products.', null, HTTP_CONFLICT);
+        }
+
+        $stmt = $pdo->prepare('DELETE FROM categories WHERE id = ?');
+        $stmt->execute([(int)$matches[1]]);
+        sendJson(true, 'Category deleted successfully.');
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to delete category.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/orders/my' && $method === 'GET') {
+    try {
+        global $pdo;
+        $user = currentUser($pdo);
+        $page = requestPage();
+        $perPage = requestPerPage();
+        $offset = ($page - 1) * $perPage;
+
+        $count = $pdo->prepare('SELECT COUNT(*) FROM orders WHERE userId = ?');
+        $count->execute([(int)$user['id']]);
+
+        $stmt = $pdo->prepare(
+            'SELECT o.*, u.email, u.firstName, u.lastName
+             FROM orders o
+             INNER JOIN users u ON u.id = o.userId
+             WHERE o.userId = ?
+             ORDER BY o.id DESC
+             LIMIT ? OFFSET ?'
+        );
+        $stmt->execute([(int)$user['id'], $perPage, $offset]);
+
+        paginateResponse(
+            array_map('normalizeOrder', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+            (int)$count->fetchColumn(),
+            $page,
+            $perPage,
+            'Your orders retrieved successfully'
+        );
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to load your orders.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/orders' && $method === 'GET') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+        $page = requestPage();
+        $perPage = requestPerPage();
+        $offset = ($page - 1) * $perPage;
+        $status = trim($_GET['status'] ?? '');
+        $params = [];
+        $where = '';
+
+        if ($status !== '') {
+            $where = 'WHERE o.status = ?';
+            $params[] = $status;
+        }
+
+        $count = $pdo->prepare("SELECT COUNT(*) FROM orders o $where");
+        $count->execute($params);
+
+        $stmt = $pdo->prepare(
+            "SELECT o.*, u.email, u.firstName, u.lastName
+             FROM orders o
+             INNER JOIN users u ON u.id = o.userId
+             $where
+             ORDER BY o.id DESC
+             LIMIT ? OFFSET ?"
+        );
+        $stmt->execute(array_merge($params, [$perPage, $offset]));
+
+        paginateResponse(
+            array_map('normalizeOrder', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+            (int)$count->fetchColumn(),
+            $page,
+            $perPage,
+            'Orders retrieved successfully'
+        );
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to load orders.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/orders' && $method === 'POST') {
+    try {
+        global $pdo;
+        $user = currentUser($pdo);
+        $input = getJsonInput();
+        $items = $input['items'] ?? [];
+
+        if (!is_array($items) || empty($items)) {
+            sendJson(false, 'Order must contain at least one item.', null, HTTP_BAD_REQUEST);
+        }
+
+        $orderItems = [];
+        $totalAmount = 0;
+
+        foreach ($items as $item) {
+            $productId = (int)($item['productId'] ?? $item['product_id'] ?? $item['id'] ?? 0);
+            $quantity = (int)($item['quantity'] ?? 0);
+
+            if ($productId <= 0 || $quantity <= 0) {
+                sendJson(false, 'Each order item needs a productId and quantity.', null, HTTP_BAD_REQUEST);
+            }
+
+            $product = fetchProduct($pdo, $productId);
+            if (!$product) {
+                sendJson(false, "Product {$productId} not found.", null, HTTP_NOT_FOUND);
+            }
+
+            if ((int)$product['stockQuantity'] < $quantity) {
+                sendJson(false, "Product '{$product['name']}' has insufficient stock.", null, HTTP_CONFLICT);
+            }
+
+            $unitPrice = (float)$product['price'];
+            $subtotal = $unitPrice * $quantity;
+            $totalAmount += $subtotal;
+            $orderItems[] = [
+                'productId' => $productId,
+                'quantity' => $quantity,
+                'unitPrice' => $unitPrice,
+                'subtotal' => $subtotal,
+            ];
+        }
+
+        $pdo->beginTransaction();
+
+        try {
+            $orderNumber = 'ORD-' . date('YmdHis') . '-' . random_int(1000, 9999);
+
+            if (DB_DRIVER === 'pgsql') {
+                $orderStmt = $pdo->prepare(
+                    'INSERT INTO orders (userId, orderNumber, totalAmount, status)
+                     VALUES (?, ?, ?, ?)
+                     RETURNING id'
+                );
+                $orderStmt->execute([(int)$user['id'], $orderNumber, $totalAmount, ORDER_STATUS_PROCESSING]);
+                $orderId = (int)$orderStmt->fetchColumn();
+            } else {
+                $orderStmt = $pdo->prepare(
+                    'INSERT INTO orders (userId, orderNumber, totalAmount, status)
+                     VALUES (?, ?, ?, ?)'
+                );
+                $orderStmt->execute([(int)$user['id'], $orderNumber, $totalAmount, ORDER_STATUS_PROCESSING]);
+                $orderId = (int)$pdo->lastInsertId();
+            }
+
+            $itemStmt = $pdo->prepare(
+                'INSERT INTO order_items (orderId, productId, quantity, unitPrice, subtotal)
+                 VALUES (?, ?, ?, ?, ?)'
+            );
+            $stockStmt = $pdo->prepare('UPDATE products SET stockQuantity = stockQuantity - ? WHERE id = ?');
+
+            foreach ($orderItems as $item) {
+                $itemStmt->execute([$orderId, $item['productId'], $item['quantity'], $item['unitPrice'], $item['subtotal']]);
+                $stockStmt->execute([$item['quantity'], $item['productId']]);
+            }
+
+            $pdo->commit();
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+
+        sendJson(true, 'Order created successfully.', fetchOrder($pdo, $orderId), HTTP_CREATED);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to create order.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if (preg_match('#^/api/v1/orders/(\d+)$#', $uri, $matches) && $method === 'GET') {
+    try {
+        global $pdo;
+        $user = currentUser($pdo);
+        $order = fetchOrder($pdo, (int)$matches[1]);
+
+        if (!$order) {
+            sendJson(false, 'Order not found.', null, HTTP_NOT_FOUND);
+        }
+
+        if (($user['role'] ?? '') !== USER_ROLE_ADMIN && (int)$order['userId'] !== (int)$user['id']) {
+            sendJson(false, 'You do not have access to this order.', null, HTTP_FORBIDDEN);
+        }
+
+        sendJson(true, 'Order retrieved successfully.', $order);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to load order.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if (preg_match('#^/api/v1/orders/(\d+)/status$#', $uri, $matches) && $method === 'PUT') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $input = getJsonInput();
+        $status = trim($input['status'] ?? '');
+        $validStatuses = [ORDER_STATUS_PROCESSING, ORDER_STATUS_COMPLETED, ORDER_STATUS_FAILED, ORDER_STATUS_CANCELLED];
+
+        if (!in_array($status, $validStatuses, true)) {
+            sendJson(false, 'Invalid order status.', null, HTTP_BAD_REQUEST);
+        }
+
+        $stmt = $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?');
+        $stmt->execute([$status, (int)$matches[1]]);
+
+        sendJson(true, 'Order status updated successfully.', fetchOrder($pdo, (int)$matches[1]));
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to update order status.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/payments' && $method === 'GET') {
+    try {
+        global $pdo;
+        requireAdminUser($pdo);
+
+        $page = requestPage();
+        $perPage = requestPerPage();
+        $offset = ($page - 1) * $perPage;
+        $status = trim($_GET['status'] ?? '');
+        $params = [];
+        $where = '';
+
+        if ($status !== '') {
+            $where = 'WHERE p.status = ?';
+            $params[] = $status;
+        }
+
+        $count = $pdo->prepare("SELECT COUNT(*) FROM payments p $where");
+        $count->execute($params);
+
+        $stmt = $pdo->prepare(
+            "SELECT p.*, o.orderNumber, u.email
+             FROM payments p
+             INNER JOIN orders o ON o.id = p.orderId
+             INNER JOIN users u ON u.id = o.userId
+             $where
+             ORDER BY p.id DESC
+             LIMIT ? OFFSET ?"
+        );
+        $stmt->execute(array_merge($params, [$perPage, $offset]));
+
+        paginateResponse(
+            array_map('normalizePayment', $stmt->fetchAll(PDO::FETCH_ASSOC)),
+            (int)$count->fetchColumn(),
+            $page,
+            $perPage,
+            'Payments retrieved successfully'
+        );
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to load payments.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/payments/initiate' && $method === 'POST') {
+    try {
+        global $pdo;
+        $user = currentUser($pdo);
+        $input = getJsonInput();
+        $orderId = (int)($input['orderId'] ?? $input['order_id'] ?? 0);
+        $paymentMethod = trim($input['paymentMethod'] ?? $input['payment_method'] ?? 'paynow');
+
+        if ($orderId <= 0) {
+            sendJson(false, 'Order ID is required.', null, HTTP_BAD_REQUEST);
+        }
+
+        $order = fetchOrder($pdo, $orderId);
+        if (!$order) {
+            sendJson(false, 'Order not found.', null, HTTP_NOT_FOUND);
+        }
+
+        if (($user['role'] ?? '') !== USER_ROLE_ADMIN && (int)$order['userId'] !== (int)$user['id']) {
+            sendJson(false, 'You do not have access to this order.', null, HTTP_FORBIDDEN);
+        }
+
+        $existing = $pdo->prepare('SELECT * FROM payments WHERE orderId = ? LIMIT 1');
+        $existing->execute([$orderId]);
+        $payment = $existing->fetch(PDO::FETCH_ASSOC);
+
+        if ($payment) {
+            $update = $pdo->prepare('UPDATE payments SET paymentMethod = ?, status = ? WHERE id = ?');
+            $update->execute([$paymentMethod, PAYMENT_STATUS_PENDING, (int)$payment['id']]);
+            $paymentId = (int)$payment['id'];
+        } elseif (DB_DRIVER === 'pgsql') {
+            $insert = $pdo->prepare(
+                'INSERT INTO payments (orderId, amount, paymentMethod, status)
+                 VALUES (?, ?, ?, ?)
+                 RETURNING id'
+            );
+            $insert->execute([$orderId, $order['totalAmount'], $paymentMethod, PAYMENT_STATUS_PENDING]);
+            $paymentId = (int)$insert->fetchColumn();
+        } else {
+            $insert = $pdo->prepare(
+                'INSERT INTO payments (orderId, amount, paymentMethod, status)
+                 VALUES (?, ?, ?, ?)'
+            );
+            $insert->execute([$orderId, $order['totalAmount'], $paymentMethod, PAYMENT_STATUS_PENDING]);
+            $paymentId = (int)$pdo->lastInsertId();
+        }
+
+        $lookup = $pdo->prepare('SELECT * FROM payments WHERE id = ?');
+        $lookup->execute([$paymentId]);
+        sendJson(true, 'Payment initiated successfully.', normalizePayment($lookup->fetch(PDO::FETCH_ASSOC)), HTTP_CREATED);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to initiate payment.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/payments/verify' && $method === 'POST') {
+    try {
+        global $pdo;
+        $input = getJsonInput();
+        $orderId = (int)($input['orderId'] ?? $input['order_id'] ?? 0);
+        $transactionId = trim($input['transactionId'] ?? $input['transaction_id'] ?? ('TXN-' . time()));
+        $status = strtolower(trim($input['status'] ?? PAYMENT_STATUS_COMPLETED));
+        $paymentStatus = in_array($status, ['completed', 'success', 'paid'], true)
+            ? PAYMENT_STATUS_COMPLETED
+            : PAYMENT_STATUS_FAILED;
+
+        $payment = $pdo->prepare('SELECT * FROM payments WHERE orderId = ? LIMIT 1');
+        $payment->execute([$orderId]);
+        $existing = $payment->fetch(PDO::FETCH_ASSOC);
+
+        if (!$existing) {
+            sendJson(false, 'Payment not found.', null, HTTP_NOT_FOUND);
+        }
+
+        $update = $pdo->prepare('UPDATE payments SET status = ?, transactionId = ? WHERE id = ?');
+        $update->execute([$paymentStatus, $transactionId, (int)$existing['id']]);
+
+        $orderStatus = $paymentStatus === PAYMENT_STATUS_COMPLETED
+            ? ORDER_STATUS_COMPLETED
+            : ORDER_STATUS_FAILED;
+        $orderUpdate = $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?');
+        $orderUpdate->execute([$orderStatus, $orderId]);
+
+        sendJson(true, 'Payment verified successfully.', [
+            'orderId' => $orderId,
+            'transactionId' => $transactionId,
+            'status' => $paymentStatus,
+        ]);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to verify payment.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
     }
 }
 
@@ -542,28 +1314,6 @@ if (preg_match('#^/api/v1/orders/(\d+)/payment-status$#', $uri, $matches) && $me
         sendJson(true, 'Order payment status retrieved.', $order);
     } catch (Exception $e) {
         sendJson(false, 'Unable to load payment status.', ['error' => $e->getMessage()], 500);
-    }
-}
-
-if ($uri === '/api/v1/products' && $method === 'GET') {
-    try {
-        global $pdo;
-
-        $stmt = $pdo->query('SELECT * FROM products');
-        sendJson(true, 'Products retrieved successfully', $stmt->fetchAll(PDO::FETCH_ASSOC));
-    } catch (Exception $e) {
-        sendJson(false, 'Products route works but DB/table may not exist yet', ['error' => $e->getMessage()]);
-    }
-}
-
-if ($uri === '/api/v1/categories' && $method === 'GET') {
-    try {
-        global $pdo;
-
-        $stmt = $pdo->query('SELECT * FROM categories');
-        sendJson(true, 'Categories retrieved successfully', $stmt->fetchAll(PDO::FETCH_ASSOC));
-    } catch (Exception $e) {
-        sendJson(false, 'Categories route works but DB/table may not exist yet', ['error' => $e->getMessage()]);
     }
 }
 
