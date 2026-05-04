@@ -1,50 +1,34 @@
 <?php
 
-header('Access-Control-Allow-Origin: https://harareelectronichub.vercel.app');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+require_once __DIR__ . '/../config/app.php';
+
+function setCorsHeaders() {
+    if (!CORS_ENABLED) {
+        return;
+    }
+
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $isAllowedVercelOrigin = (bool) preg_match('/^https:\/\/[a-z0-9-]+\.vercel\.app$/i', $origin);
+
+    if (in_array($origin, ALLOWED_ORIGINS, true) || $isAllowedVercelOrigin) {
+        header("Access-Control-Allow-Origin: $origin");
+        header('Access-Control-Allow-Credentials: true');
+        header('Vary: Origin');
+    }
+
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Max-Age: 3600');
+    header('Content-Type: application/json');
+}
+
+setCorsHeaders();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
-// CORS HEADERS - MUST BE FIRST
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-$allowedOrigins = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080',
-    'https://harareelectronichub.vercel.app'
-];
-
-$frontendUrl = getenv('FRONTEND_URL');
-if ($frontendUrl) {
-    $allowedOrigins[] = rtrim($frontendUrl, '/');
-}
-
-$isAllowedVercelOrigin = (bool) preg_match('/^https:\/\/[a-z0-9-]+\.vercel\.app$/i', $origin);
-
-if (in_array($origin, $allowedOrigins, true) || $isAllowedVercelOrigin) {
-    header("Access-Control-Allow-Origin: $origin");
-    header('Vary: Origin');
-}
-
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Credentials: true");
-header("Content-Type: application/json");
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+    http_response_code(204);
     exit;
 }
 
-require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 
 $autoloadPath = __DIR__ . '/../vendor/autoload.php';
