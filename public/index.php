@@ -70,6 +70,34 @@ function databaseBool($value, $default = false) {
     return in_array(strtolower((string)$value), ['1', 'true', 't', 'yes', 'y'], true);
 }
 
+function normalizeUserForResponse(array $user, $isActive = null) {
+    unset($user['password']);
+
+    $user['id'] = (int)$user['id'];
+    $user['firstName'] = $user['firstName'] ?? ($user['firstname'] ?? '');
+    $user['lastName'] = $user['lastName'] ?? ($user['lastname'] ?? '');
+    $user['isActive'] = $isActive ?? databaseBool($user['isActive'] ?? ($user['isactive'] ?? true), true);
+    unset($user['firstname'], $user['lastname'], $user['isactive']);
+
+    return $user;
+}
+
+function createAuthResponse(array $user) {
+    $now = time();
+    $token = createJwt([
+        'sub' => (int)$user['id'],
+        'email' => $user['email'],
+        'role' => $user['role'],
+        'iat' => $now,
+        'exp' => $now + JWT_EXPIRY,
+    ]);
+
+    return [
+        'token' => $token,
+        'user' => normalizeUserForResponse($user),
+    ];
+}
+
 function ensurePaynowOrderColumns(PDO $pdo) {
     if (DB_DRIVER === 'pgsql') {
         $statements = [
@@ -215,28 +243,80 @@ if ($uri === '/api/v1/auth/login' && $method === 'POST') {
             sendJson(false, 'Your account is inactive.', null, HTTP_FORBIDDEN);
         }
 
-        $now = time();
-        $token = createJwt([
-            'sub' => (int)$user['id'],
-            'email' => $user['email'],
-            'role' => $user['role'],
-            'iat' => $now,
-            'exp' => $now + JWT_EXPIRY,
-        ]);
-
-        unset($user['password']);
-        $user['id'] = (int)$user['id'];
-        $user['firstName'] = $user['firstName'] ?? ($user['firstname'] ?? '');
-        $user['lastName'] = $user['lastName'] ?? ($user['lastname'] ?? '');
-        $user['isActive'] = $isActive;
-        unset($user['firstname'], $user['lastname'], $user['isactive']);
-
-        sendJson(true, 'Login successful.', [
-            'token' => $token,
-            'user' => $user,
-        ]);
+        sendJson(true, 'Login successful.', createAuthResponse($user));
     } catch (Exception $e) {
         sendJson(false, 'Unable to login.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
+
+if ($uri === '/api/v1/auth/register' && $method === 'POST') {
+    try {
+        global $pdo;
+
+        $input = getJsonInput();
+        $email = strtolower(trim($input['email'] ?? ''));
+        $password = (string)($input['password'] ?? '');
+        $fullName = trim($input['name'] ?? $input['fullName'] ?? '');
+        $firstName = trim($input['firstName'] ?? $input['first_name'] ?? '');
+        $lastName = trim($input['lastName'] ?? $input['last_name'] ?? '');
+
+        if ($firstName === '' && $fullName !== '') {
+            $nameParts = preg_split('/\s+/', $fullName, 2);
+            $firstName = $nameParts[0] ?? '';
+            $lastName = $lastName !== '' ? $lastName : ($nameParts[1] ?? '');
+        }
+
+        if ($email === '' || $password === '' || $firstName === '' || $lastName === '') {
+            sendJson(false, 'Email, password, first name, and last name are required.', null, HTTP_BAD_REQUEST);
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            sendJson(false, 'Please enter a valid email address.', null, HTTP_BAD_REQUEST);
+        }
+
+        if (strlen($password) < PASSWORD_MIN_LENGTH) {
+            sendJson(false, 'Password must be at least ' . PASSWORD_MIN_LENGTH . ' characters.', null, HTTP_BAD_REQUEST);
+        }
+
+        $existing = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1');
+        $existing->execute([$email]);
+        if ($existing->fetch()) {
+            sendJson(false, 'An account with this email already exists.', null, HTTP_CONFLICT);
+        }
+
+        $hashedPassword = password_hash($password, PASSWORD_BCRYPT, ['cost' => BCRYPT_COST]);
+
+        if (DB_DRIVER === 'pgsql') {
+            $stmt = $pdo->prepare(
+                'INSERT INTO users (email, password, firstName, lastName, role, isActive)
+                 VALUES (?, ?, ?, ?, ?, TRUE)
+                 RETURNING id, email, password, firstName, lastName, role, isActive'
+            );
+            $stmt->execute([$email, $hashedPassword, $firstName, $lastName, USER_ROLE_CUSTOMER]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        } else {
+            $stmt = $pdo->prepare(
+                'INSERT INTO users (email, password, firstName, lastName, role, isActive)
+                 VALUES (?, ?, ?, ?, ?, 1)'
+            );
+            $stmt->execute([$email, $hashedPassword, $firstName, $lastName, USER_ROLE_CUSTOMER]);
+
+            $lookup = $pdo->prepare(
+                'SELECT id, email, password, firstName, lastName, role, isActive
+                 FROM users
+                 WHERE id = ?'
+            );
+            $lookup->execute([(int)$pdo->lastInsertId()]);
+            $user = $lookup->fetch(PDO::FETCH_ASSOC);
+        }
+
+        sendJson(true, 'Registration successful.', createAuthResponse($user), HTTP_CREATED);
+    } catch (Exception $e) {
+        if ($e instanceof PDOException && in_array($e->getCode(), ['23000', '23505'], true)) {
+            sendJson(false, 'An account with this email already exists.', null, HTTP_CONFLICT);
+        }
+
+        sendJson(false, 'Unable to register.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
     }
 }
 
