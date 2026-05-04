@@ -37,6 +37,39 @@ function getJsonInput() {
     return is_array($data) ? $data : [];
 }
 
+function base64UrlEncode($value) {
+    return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+}
+
+function createJwt(array $payload) {
+    $header = [
+        'typ' => 'JWT',
+        'alg' => 'HS256',
+    ];
+
+    $segments = [
+        base64UrlEncode(json_encode($header)),
+        base64UrlEncode(json_encode($payload)),
+    ];
+
+    $signature = hash_hmac('sha256', implode('.', $segments), JWT_SECRET, true);
+    $segments[] = base64UrlEncode($signature);
+
+    return implode('.', $segments);
+}
+
+function databaseBool($value, $default = false) {
+    if ($value === null) {
+        return $default;
+    }
+
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    return in_array(strtolower((string)$value), ['1', 'true', 't', 'yes', 'y'], true);
+}
+
 function ensurePaynowOrderColumns(PDO $pdo) {
     if (DB_DRIVER === 'pgsql') {
         $statements = [
@@ -151,6 +184,61 @@ if ($uri === '/api/v1' && $method === 'GET') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+
+if ($uri === '/api/v1/auth/login' && $method === 'POST') {
+    try {
+        global $pdo;
+
+        $input = getJsonInput();
+        $email = strtolower(trim($input['email'] ?? ''));
+        $password = (string)($input['password'] ?? '');
+
+        if ($email === '' || $password === '') {
+            sendJson(false, 'Email and password are required.', null, HTTP_BAD_REQUEST);
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT id, email, password, firstName, lastName, role, isActive
+             FROM users
+             WHERE LOWER(email) = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user || !password_verify($password, $user['password'])) {
+            sendJson(false, 'Invalid email or password.', null, HTTP_UNAUTHORIZED);
+        }
+
+        $isActive = databaseBool($user['isActive'] ?? ($user['isactive'] ?? true), true);
+        if (!$isActive) {
+            sendJson(false, 'Your account is inactive.', null, HTTP_FORBIDDEN);
+        }
+
+        $now = time();
+        $token = createJwt([
+            'sub' => (int)$user['id'],
+            'email' => $user['email'],
+            'role' => $user['role'],
+            'iat' => $now,
+            'exp' => $now + JWT_EXPIRY,
+        ]);
+
+        unset($user['password']);
+        $user['id'] = (int)$user['id'];
+        $user['firstName'] = $user['firstName'] ?? ($user['firstname'] ?? '');
+        $user['lastName'] = $user['lastName'] ?? ($user['lastname'] ?? '');
+        $user['isActive'] = $isActive;
+        unset($user['firstname'], $user['lastname'], $user['isactive']);
+
+        sendJson(true, 'Login successful.', [
+            'token' => $token,
+            'user' => $user,
+        ]);
+    } catch (Exception $e) {
+        sendJson(false, 'Unable to login.', ['error' => $e->getMessage()], HTTP_INTERNAL_ERROR);
+    }
+}
 
 if (($uri === '/api/v1/create-paynow-payment' || $uri === '/api/v1/payments/paynow/create') && $method === 'POST') {
     try {
