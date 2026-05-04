@@ -1,0 +1,6 @@
+vendor/
+logs/*.log
+uploads/*
+!uploads/.gitkeep
+.env
+.idea/

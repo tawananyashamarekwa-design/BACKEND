@@ -22,60 +22,41 @@ function setCorsHeaders() {
     header('Content-Type: application/json');
 }
 
-setCorsHeaders();
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
-require_once __DIR__ . '/../config/database.php';
-
-$autoloadPath = __DIR__ . '/../vendor/autoload.php';
-if (file_exists($autoloadPath)) {
-    require_once $autoloadPath;
-}
-
-// Error handling
-error_reporting(E_ALL);
-
-if (defined('APP_DEBUG') && APP_DEBUG) {
-    ini_set('display_errors', 1);
-} else {
-    ini_set('display_errors', 0);
-}
-
-// JSON response header
-header('Content-Type: application/json');
-
-// Get request info
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$method = $_SERVER['REQUEST_METHOD'];
-
 function sendJson($success, $message, $data = null, $statusCode = 200) {
     http_response_code($statusCode);
-
     echo json_encode([
         'success' => $success,
         'message' => $message,
-        'data' => $data
+        'data' => $data,
     ]);
     exit;
 }
 
 function getJsonInput() {
-    $body = file_get_contents('php://input');
-    $data = json_decode($body, true);
-
+    $data = json_decode(file_get_contents('php://input'), true);
     return is_array($data) ? $data : [];
 }
 
 function ensurePaynowOrderColumns(PDO $pdo) {
+    if (DB_DRIVER === 'pgsql') {
+        $statements = [
+            'ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50)',
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Pending'",
+            'ALTER TABLE orders ADD COLUMN IF NOT EXISTS paynow_poll_url TEXT',
+            'ALTER TABLE orders ADD COLUMN IF NOT EXISTS paynow_reference VARCHAR(100)',
+        ];
+
+        foreach ($statements as $sql) {
+            $pdo->exec($sql);
+        }
+        return;
+    }
+
     $requiredColumns = [
-        'payment_method' => "ALTER TABLE orders ADD COLUMN payment_method VARCHAR(50)",
+        'payment_method' => 'ALTER TABLE orders ADD COLUMN payment_method VARCHAR(50)',
         'payment_status' => "ALTER TABLE orders ADD COLUMN payment_status VARCHAR(50) DEFAULT 'Pending'",
-        'paynow_poll_url' => "ALTER TABLE orders ADD COLUMN paynow_poll_url TEXT",
-        'paynow_reference' => "ALTER TABLE orders ADD COLUMN paynow_reference VARCHAR(100)"
+        'paynow_poll_url' => 'ALTER TABLE orders ADD COLUMN paynow_poll_url TEXT',
+        'paynow_reference' => 'ALTER TABLE orders ADD COLUMN paynow_reference VARCHAR(100)',
     ];
 
     $columnCheck = $pdo->prepare(
@@ -88,30 +69,20 @@ function ensurePaynowOrderColumns(PDO $pdo) {
     foreach ($requiredColumns as $column => $sql) {
         $columnCheck->execute([$column]);
         if ((int)$columnCheck->fetchColumn() === 0) {
-            $pdo->prepare($sql)->execute();
+            $pdo->exec($sql);
         }
     }
 }
 
 function requirePaynowSdk() {
     if (!class_exists('\\Paynow\\Payments\\Paynow')) {
-        sendJson(
-            false,
-            'Paynow SDK is not installed. Run composer require paynow/php-sdk in the backend folder.',
-            null,
-            500
-        );
+        sendJson(false, 'Paynow SDK is not installed.', null, 500);
     }
 }
 
 function createPaynowClient($returnUrl = PAYNOW_RETURN_URL, $resultUrl = PAYNOW_RESULT_URL) {
     if (!PAYNOW_INTEGRATION_ID || !PAYNOW_INTEGRATION_KEY) {
-        sendJson(
-            false,
-            'Paynow credentials are missing. Set PAYNOW_INTEGRATION_ID and PAYNOW_INTEGRATION_KEY as backend environment variables.',
-            null,
-            500
-        );
+        sendJson(false, 'Paynow credentials are missing.', null, 500);
     }
 
     return new \Paynow\Payments\Paynow(
@@ -137,16 +108,13 @@ function getOrderForPayment(PDO $pdo, $orderId) {
          GROUP BY o.id, o.orderNumber, o.totalAmount, u.email"
     );
     $stmt->execute([$orderId]);
-
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 function getPaynowStatusText($statusUpdate) {
-    if (is_object($statusUpdate) && method_exists($statusUpdate, 'status')) {
-        return (string)$statusUpdate->status();
-    }
-
-    return 'Pending';
+    return is_object($statusUpdate) && method_exists($statusUpdate, 'status')
+        ? (string)$statusUpdate->status()
+        : 'Pending';
 }
 
 function isPaynowPaid($statusUpdate) {
@@ -155,38 +123,35 @@ function isPaynowPaid($statusUpdate) {
         && $statusUpdate->paid();
 }
 
-/*
-|--------------------------------------------------------------------------
-| ROOT ROUTE
-|--------------------------------------------------------------------------
-*/
+setCorsHeaders();
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+$autoloadPath = __DIR__ . '/../vendor/autoload.php';
+if (file_exists($autoloadPath)) {
+    require_once $autoloadPath;
+}
+
+error_reporting(E_ALL);
+ini_set('display_errors', APP_DEBUG ? 1 : 0);
+header('Content-Type: application/json');
+
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$method = $_SERVER['REQUEST_METHOD'];
+
 if ($uri === '/' && $method === 'GET') {
-    echo json_encode([
-        'success' => true,
-        'message' => 'Backend is running successfully',
-        'api_base' => '/api/v1'
-    ]);
-    exit;
+    sendJson(true, 'Backend is running successfully', ['api_base' => '/api/v1']);
 }
 
-/*
-|--------------------------------------------------------------------------
-| API BASE CHECK
-|--------------------------------------------------------------------------
-*/
 if ($uri === '/api/v1' && $method === 'GET') {
-    echo json_encode([
-        'success' => true,
-        'message' => 'API v1 is working'
-    ]);
-    exit;
+    sendJson(true, 'API v1 is working');
 }
 
-/*
-|--------------------------------------------------------------------------
-| PAYNOW PAYMENT CREATE ROUTE
-|--------------------------------------------------------------------------
-*/
+require_once __DIR__ . '/../config/database.php';
+
 if (($uri === '/api/v1/create-paynow-payment' || $uri === '/api/v1/payments/paynow/create') && $method === 'POST') {
     try {
         global $pdo;
@@ -213,46 +178,38 @@ if (($uri === '/api/v1/create-paynow-payment' || $uri === '/api/v1/payments/payn
 
         $separator = strpos(PAYNOW_RETURN_URL, '?') === false ? '?' : '&';
         $returnUrl = PAYNOW_RETURN_URL . $separator . 'order_id=' . urlencode((string)$orderId);
-
         $paynow = createPaynowClient($returnUrl, PAYNOW_RESULT_URL);
         $reference = 'Order #' . $order['id'];
         $payment = $paynow->createPayment($reference, $order['customer_email']);
         $payment->add($reference, $orderTotal);
-
         $response = $paynow->send($payment);
 
         if (!$response->success()) {
             sendJson(false, 'Paynow could not create the payment. Please try again.', null, 502);
         }
 
-        $pollUrl = $response->pollUrl();
         $redirectUrl = method_exists($response, 'redirectUrl')
             ? $response->redirectUrl()
             : $response->redirectLink();
 
         $update = $pdo->prepare(
-            "UPDATE orders
+            'UPDATE orders
              SET payment_method = ?, payment_status = ?, paynow_poll_url = ?, paynow_reference = ?
-             WHERE id = ?"
+             WHERE id = ?'
         );
-        $update->execute(['Paynow', 'Pending', $pollUrl, $reference, $orderId]);
+        $update->execute(['Paynow', 'Pending', $response->pollUrl(), $reference, $orderId]);
 
         sendJson(true, 'Paynow payment created.', [
             'redirect_url' => $redirectUrl,
             'order_id' => $orderId,
-            'payment_status' => 'Pending'
+            'payment_status' => 'Pending',
         ]);
     } catch (Exception $e) {
         sendJson(false, 'Unable to create Paynow payment.', ['error' => $e->getMessage()], 500);
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| PAYNOW RESULT/CALLBACK ROUTE
-|--------------------------------------------------------------------------
-*/
-if ($uri === '/api/v1/paynow-result' && in_array($method, ['GET', 'POST'])) {
+if ($uri === '/api/v1/paynow-result' && in_array($method, ['GET', 'POST'], true)) {
     try {
         global $pdo;
 
@@ -261,7 +218,10 @@ if ($uri === '/api/v1/paynow-result' && in_array($method, ['GET', 'POST'])) {
 
         $paynow = createPaynowClient();
         $callbackData = array_merge($_GET, $_POST);
-        $pollUrl = $callbackData['pollurl'] ?? $callbackData['pollUrl'] ?? $callbackData['paynow_poll_url'] ?? null;
+        $pollUrl = $callbackData['pollurl']
+            ?? $callbackData['pollUrl']
+            ?? $callbackData['paynow_poll_url']
+            ?? null;
         $statusUpdate = null;
 
         if (method_exists($paynow, 'processStatusUpdate')) {
@@ -281,41 +241,27 @@ if ($uri === '/api/v1/paynow-result' && in_array($method, ['GET', 'POST'])) {
 
         if ($pollUrl && $statusUpdate) {
             $newStatus = isPaynowPaid($statusUpdate) ? 'Paid' : getPaynowStatusText($statusUpdate);
-
-            $update = $pdo->prepare(
-                "UPDATE orders
-                 SET payment_status = ?
-                 WHERE paynow_poll_url = ?"
-            );
+            $update = $pdo->prepare('UPDATE orders SET payment_status = ? WHERE paynow_poll_url = ?');
             $update->execute([$newStatus, $pollUrl]);
         }
-
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'OK';
-        exit;
     } catch (Exception $e) {
         error_log('Paynow result error: ' . $e->getMessage());
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'OK';
-        exit;
     }
+
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'OK';
+    exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| ORDER PAYMENT STATUS ROUTE
-|--------------------------------------------------------------------------
-*/
 if (preg_match('#^/api/v1/orders/(\d+)/payment-status$#', $uri, $matches) && $method === 'GET') {
     try {
         global $pdo;
 
         ensurePaynowOrderColumns($pdo);
-
         $stmt = $pdo->prepare(
-            "SELECT id, orderNumber, totalAmount, payment_method, payment_status
+            'SELECT id, orderNumber, totalAmount, payment_method, payment_status
              FROM orders
-             WHERE id = ?"
+             WHERE id = ?'
         );
         $stmt->execute([(int)$matches[1]]);
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -330,76 +276,26 @@ if (preg_match('#^/api/v1/orders/(\d+)/payment-status$#', $uri, $matches) && $me
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| PRODUCTS ROUTE
-|--------------------------------------------------------------------------
-*/
 if ($uri === '/api/v1/products' && $method === 'GET') {
     try {
         global $pdo;
 
-        $stmt = $pdo->query("SELECT * FROM products");
-        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Products retrieved successfully',
-            'data' => $products
-        ]);
-        exit;
-
+        $stmt = $pdo->query('SELECT * FROM products');
+        sendJson(true, 'Products retrieved successfully', $stmt->fetchAll(PDO::FETCH_ASSOC));
     } catch (Exception $e) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Products route works but DB/table may not exist yet',
-            'error' => $e->getMessage()
-        ]);
-        exit;
+        sendJson(false, 'Products route works but DB/table may not exist yet', ['error' => $e->getMessage()]);
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| CATEGORIES ROUTE
-|--------------------------------------------------------------------------
-*/
 if ($uri === '/api/v1/categories' && $method === 'GET') {
     try {
         global $pdo;
 
-        $stmt = $pdo->query("SELECT * FROM categories");
-        $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Categories retrieved successfully',
-            'data' => $categories
-        ]);
-        exit;
-
+        $stmt = $pdo->query('SELECT * FROM categories');
+        sendJson(true, 'Categories retrieved successfully', $stmt->fetchAll(PDO::FETCH_ASSOC));
     } catch (Exception $e) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Categories route works but DB/table may not exist yet',
-            'error' => $e->getMessage()
-        ]);
-        exit;
+        sendJson(false, 'Categories route works but DB/table may not exist yet', ['error' => $e->getMessage()]);
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| FALLBACK (NOT FOUND)
-|--------------------------------------------------------------------------
-*/
-http_response_code(404);
-
-echo json_encode([
-    'success' => false,
-    'message' => 'Route not found',
-    'path' => $uri,
-    'method' => $method
-]);
-
-exit;
+sendJson(false, 'Route not found', ['path' => $uri, 'method' => $method], 404);
