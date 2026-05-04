@@ -12,12 +12,12 @@ define('APP_LOCALE', 'en_US');
 define('DB_DRIVER', getenv('DB_DRIVER') ?: (
     str_starts_with(getenv('DATABASE_URL') ?: '', 'postgres') || getenv('DB_PORT') === '5432'
         ? 'pgsql'
-        : 'mysql'
+        : 'pgsql'
 ));
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_HOST', getenv('DB_HOST') ?: 'dpg-d7rks5i8qa3s73dj1t40-a');
+define('DB_USER', getenv('DB_USER') ?: 'backend_db_zzin_user');
 define('DB_PASS', getenv('DB_PASSWORD') ?: (getenv('DB_PASS') ?: ''));
-define('DB_NAME', getenv('DB_NAME') ?: 'electronics_ecommerce');
+define('DB_NAME', getenv('DB_NAME') ?: 'backend_db_zzin');
 define('DB_PORT', getenv('DB_PORT') ?: (DB_DRIVER === 'pgsql' ? 5432 : 3306));
 define('DB_CHARSET', 'utf8mb4');
 

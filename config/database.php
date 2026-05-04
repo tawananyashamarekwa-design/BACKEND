@@ -4,12 +4,12 @@ $databaseUrl = getenv('DATABASE_URL');
 $driver = getenv('DB_DRIVER') ?: (
     str_starts_with($databaseUrl ?: '', 'postgres') || getenv('DB_PORT') === '5432'
         ? 'pgsql'
-        : 'mysql'
+        : 'pgsql'
 );
-$host = getenv('DB_HOST') ?: 'localhost';
+$host = getenv('DB_HOST') ?: 'dpg-d7rks5i8qa3s73dj1t40-a';
 $port = getenv('DB_PORT') ?: ($driver === 'pgsql' ? '5432' : '3306');
-$dbname = getenv('DB_NAME') ?: 'electronics_ecommerce';
-$username = getenv('DB_USER') ?: 'root';
+$dbname = getenv('DB_NAME') ?: 'backend_db_zzin';
+$username = getenv('DB_USER') ?: 'backend_db_zzin_user';
 $password = getenv('DB_PASSWORD') ?: (getenv('DB_PASS') ?: '');
 
 if ($databaseUrl) {
